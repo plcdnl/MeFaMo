@@ -116,6 +116,7 @@ class Mefamo():
     def start(self):        
         cap = None
         image = None
+        input = None
 
         # check if input is an image        
         if isinstance(self.input, str) and (self.input.lower().endswith(".jpg") or self.input.lower().endswith(".png")):
@@ -140,7 +141,7 @@ class Mefamo():
         # run the network loop in a separate thread
         self.network_thread.start()
 
-        if cap is not None:
+        if image is None:
             # for camera and videos
             while cap.isOpened():
                 success, image = cap.read()
