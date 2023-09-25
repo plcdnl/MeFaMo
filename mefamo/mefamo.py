@@ -75,6 +75,7 @@ class Mefamo():
         self.show_image = not hide_image
         self.show_3d = show_3d
         self.show_debug = show_debug
+        self.unfilter_head = False
 
         self.face_mesh = face_mesh.FaceMesh(
             max_num_faces=1,
@@ -83,6 +84,7 @@ class Mefamo():
             min_tracking_confidence=0.5)
 
         self.live_link_face = PyLiveLinkFace(fps = 30, filter_size = 4)
+        # self.live_link_face = PyLiveLinkFace()  # default is fps = 60, filtersize = 5
         self.blendshape_calulator = BlendshapeCalculator()
 
         self.ip = ip
@@ -123,7 +125,6 @@ class Mefamo():
             image = cv2.imread(self.input)
             self.file = True   
         else:   
-            input = self.input  
             try:
                 input = int(self.input)
             except ValueError:
@@ -206,24 +207,23 @@ class Mefamo():
                     connection_drawing_spec=drawing_styles
                     .get_default_face_mesh_contours_style())
             
-                 # draw iris points
-                image = Drawing.draw_landmark_point(face_landmarks.landmark[468], image, color = (0, 0, 255))
-                image = Drawing.draw_landmark_point(face_landmarks.landmark[473], image, color = (0, 255, 0))
+                # draw iris points (BGR color)
+                # right
+                image = Drawing.draw_landmark_point(face_landmarks.landmark[468], image, color=(0, 255, 255))
+                # left
+                image = Drawing.draw_landmark_point(face_landmarks.landmark[473], image, color=(255, 255, 0))
 
                 # calculate and set all the blendshapes                
-                self.blendshape_calulator.calculate_blendshapes(
-                    self.live_link_face, metric_landmarks[0:3].T, face_landmarks.landmark)
+                self.blendshape_calulator.calculate_blendshapes(self.live_link_face, metric_landmarks[0:3].T, face_landmarks.landmark)
 
                 # calculate the head rotation out of the pose matrix
                 eulerAngles = transforms3d.euler.mat2euler(pose_transform_mat)
                 pitch = -eulerAngles[0]
                 yaw = eulerAngles[1]
                 roll = eulerAngles[2]
-                self.live_link_face.set_blendshape(
-                    FaceBlendShape.HeadPitch, pitch)
-                self.live_link_face.set_blendshape(
-                    FaceBlendShape.HeadRoll, roll)
-                self.live_link_face.set_blendshape(FaceBlendShape.HeadYaw, yaw)
+                self.live_link_face.set_blendshape(FaceBlendShape.HeadPitch, pitch, self.unfilter_head)
+                self.live_link_face.set_blendshape(FaceBlendShape.HeadRoll, roll, self.unfilter_head)
+                self.live_link_face.set_blendshape(FaceBlendShape.HeadYaw, yaw, self.unfilter_head)
 
         # Flip the image horizontally for a selfie-view display.
         self.image = cv2.flip(image, 1).astype('uint8')
@@ -252,7 +252,7 @@ class Mefamo():
                         text_coordinates = [300, 25]
 
                 cv2.imshow('Debug', white_bg)
-
+            # ESC to exit
             if cv2.waitKey(1) & 0xFF == 27:
                 return False
 
