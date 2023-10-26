@@ -42,7 +42,7 @@ class BlendshapeCalculator():
         self.unfilter_eyeballs = False
         self.unfilter_mouth = True
 
-        self.symmetry_eye = False
+        self.symmetry_eye = True
         self.symmetry_mouth = False
 
         # self._calculate_mouth_landmarks()
@@ -339,11 +339,11 @@ class BlendshapeCalculator():
 
     def _calculate_eyeball_landmarks(self):
         #  TODO: add tweaks for my eyes being off
+        #  TODO: make algorithm as efficient at possible (none or few if's and combine calcs where possible)
         #  LEFT EYEBALL #####################################################################################
         pupil_left = self._get_landmark(self.blend_shape_config.CanonicalPpoints.pupil_left, True)
         outer_left = self._get_landmark(self.blend_shape_config.CanonicalPpoints.eye_left[0], True)
         inner_left = self._get_landmark(self.blend_shape_config.CanonicalPpoints.eye_left[1], True)
-
         top_left = self._get_landmark(self.blend_shape_config.CanonicalPpoints.eye_left[3], True)
         bottom_left = self._get_landmark(self.blend_shape_config.CanonicalPpoints.eye_left[6], True)
 
@@ -358,26 +358,6 @@ class BlendshapeCalculator():
         left_dist_inner = math.dist(pupil_left, inner_left)
         left_dist_top = math.dist(pupil_left, top_left)
         left_dist_bottom = math.dist(pupil_left, bottom_left)
-
-        #  Left Eye Out/In
-        if left_width_outin_half > left_dist_outer:
-            dist_from_center = left_width_outin_half - left_dist_outer
-            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookOutLeft, self._remap(dist_from_center, 0, left_width_range), self.unfilter_eyeballs)
-            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookInLeft, 0, self.unfilter_eyeballs)
-        else:
-            dist_from_center = left_width_outin_half - left_dist_inner
-            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookOutLeft, 0, self.unfilter_eyeballs)
-            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookInLeft, self._remap(dist_from_center, 0, left_width_range), self.unfilter_eyeballs)
-
-        #  Left Eye Up/Down
-        if left_height_topbottom_half > left_dist_top:
-            dist_from_center = left_height_topbottom_half - left_dist_top
-            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookUpLeft, self._remap(dist_from_center, 0, left_height_range), self.unfilter_eyeballs)
-            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookDownLeft, 0, self.unfilter_eyeballs)
-        else:
-            dist_from_center = left_height_topbottom_half - left_dist_bottom
-            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookUpLeft, 0, self.unfilter_eyeballs)
-            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookDownLeft, self._remap(dist_from_center, 0, left_height_range), self.unfilter_eyeballs)
 
         #  RIGHT EYEBALL ####################################################################################
         pupil_right = self._get_landmark(self.blend_shape_config.CanonicalPpoints.pupil_right, True)
@@ -398,22 +378,56 @@ class BlendshapeCalculator():
         right_dist_top = math.dist(pupil_right, top_right)
         right_dist_bottom = math.dist(pupil_right, bottom_right)
 
-        #  Right Eye Out/In
+        if not self.symmetry_eye:
+            #  Left Eye Out/In
+            if left_width_outin_half > left_dist_outer:
+                dist_from_center = left_width_outin_half - left_dist_outer
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookOutLeft, self._remap(dist_from_center, 0, left_width_range), self.unfilter_eyeballs)
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookInLeft, 0, self.unfilter_eyeballs)
+            else:
+                dist_from_center = left_width_outin_half - left_dist_inner
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookOutLeft, 0, self.unfilter_eyeballs)
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookInLeft, self._remap(dist_from_center, 0, left_width_range), self.unfilter_eyeballs)
+
+            #  Left Eye Up/Down
+            if left_height_topbottom_half > left_dist_top:
+                dist_from_center = left_height_topbottom_half - left_dist_top
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookUpLeft, self._remap(dist_from_center, 0, left_height_range), self.unfilter_eyeballs)
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookDownLeft, 0, self.unfilter_eyeballs)
+            else:
+                dist_from_center = left_height_topbottom_half - left_dist_bottom
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookUpLeft, 0, self.unfilter_eyeballs)
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookDownLeft, self._remap(dist_from_center, 0, left_height_range), self.unfilter_eyeballs)
+
+        #  Right Eye Out/In (with symmetry for left added)
         if right_width_outin_half > right_dist_outer:
             dist_from_center = right_width_outin_half - right_dist_outer
             self._live_link_face.set_blendshape(FaceBlendShape.EyeLookOutRight, self._remap(dist_from_center, 0, right_width_range), self.unfilter_eyeballs)
             self._live_link_face.set_blendshape(FaceBlendShape.EyeLookInRight, 0, self.unfilter_eyeballs)
+            if self.symmetry_eye:
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookOutLeft, 0, self.unfilter_eyeballs)
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookInLeft, self._remap(dist_from_center, 0, right_width_range), self.unfilter_eyeballs)
         else:
             dist_from_center = right_width_outin_half - right_dist_inner
             self._live_link_face.set_blendshape(FaceBlendShape.EyeLookOutRight, 0, self.unfilter_eyeballs)
             self._live_link_face.set_blendshape(FaceBlendShape.EyeLookInRight, self._remap(dist_from_center, 0, right_width_range), self.unfilter_eyeballs)
+            if self.symmetry_eye:
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookOutLeft, self._remap(dist_from_center, 0, right_width_range), self.unfilter_eyeballs)
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookInLeft, 0, self.unfilter_eyeballs)
 
         #  Right Eye Up/Down
         if right_height_topbottom_half > right_dist_top:
             dist_from_center = right_height_topbottom_half - right_dist_top
             self._live_link_face.set_blendshape(FaceBlendShape.EyeLookUpRight, self._remap(dist_from_center, 0, right_height_range), self.unfilter_eyeballs)
             self._live_link_face.set_blendshape(FaceBlendShape.EyeLookDownRight, 0, self.unfilter_eyeballs)
+            if self.symmetry_eye:
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookUpLeft, self._remap(dist_from_center, 0, right_height_range), self.unfilter_eyeballs)
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookDownLeft, 0, self.unfilter_eyeballs)
         else:
             dist_from_center = right_height_topbottom_half - right_dist_bottom
-            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookUpRight, 0, self.unfilter_eyeballs)
-            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookDownRight, self._remap(dist_from_center, 0, right_height_range), self.unfilter_eyeballs)
+            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookUpLeft, 0, self.unfilter_eyeballs)
+            self._live_link_face.set_blendshape(FaceBlendShape.EyeLookDownLeft, self._remap(dist_from_center, 0, right_height_range), self.unfilter_eyeballs)
+            if self.symmetry_eye:
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookUpLeft, 0, self.unfilter_eyeballs)
+                self._live_link_face.set_blendshape(FaceBlendShape.EyeLookDownLeft, self._remap(dist_from_center, 0, right_height_range), self.unfilter_eyeballs)
+
