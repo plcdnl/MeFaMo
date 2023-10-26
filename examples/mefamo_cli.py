@@ -15,8 +15,10 @@ if __name__ == "__main__":
                         help='Hide the image window.')
     parser.add_argument('--show_debug', action='store_true',
                         help='Show debug window.')
+    parser.add_argument('--show_remap', action='store_true',
+                        help='Show remap window.')
     args = parser.parse_args()
 
     print("Starting MeFaMo")
-    mediapipe_face = Mefamo(args.input, args.ip, args.port, args.show_3d, args.hide_image, args.show_debug)
+    mediapipe_face = Mefamo(args.input, args.ip, args.port, args.show_3d, args.hide_image, args.show_debug, args.show_remap)
     mediapipe_face.start()

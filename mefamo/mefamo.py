@@ -69,12 +69,13 @@ def calculate_rotation(face_landmarks, pcf: PCF, image_shape):
 
    
 class Mefamo():
-    def __init__(self, input = 0, ip = '127.0.0.1', port = 11111, show_3d = False, hide_image = False, show_debug = False) -> None:
+    def __init__(self, input = 0, ip = '127.0.0.1', port = 11111, show_3d = False, hide_image = False, show_debug = False, show_remap = False) -> None:
 
         self.input = input
         self.show_image = not hide_image
         self.show_3d = show_3d
         self.show_debug = show_debug
+        self.show_remap = show_remap
         self.unfilter_head = False
 
         self.face_mesh = face_mesh.FaceMesh(
@@ -83,7 +84,7 @@ class Mefamo():
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5)
 
-        self.live_link_face = PyLiveLinkFace(fps = 30, filter_size = 4)
+        self.live_link_face = PyLiveLinkFace(fps = 60, filter_size = 5)
         # self.live_link_face = PyLiveLinkFace()  # default is fps = 60, filtersize = 5
         self.blendshape_calulator = BlendshapeCalculator()
 
@@ -229,11 +230,21 @@ class Mefamo():
         self.image = cv2.flip(image, 1).astype('uint8')
 
         # Debug format settings
-        white_bg = 0 * np.ones(shape=[720, 720, 3], dtype=np.uint8)
+        debug_image = 0 * np.ones(shape=[840, 720, 3], dtype=np.uint8)
+        remap_image = 0 * np.ones(shape=[720, 720, 3], dtype=np.uint8)
         text_coordinates = [25, 25]
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.50
-        color = (0, 255, 0)
+        font_color = (255, 127, 0)
+
+        thickness = -1
+        bar_width = 2
+        bar_length_max = 250
+        bar_output_offset_y = 2
+        bar_input_color = (255, 0, 0)
+        bar_output_color = (0, 255, 0)
+        bar_output_bg_color = (0, 63, 0)
+        zero_color = (127, 127, 127)
 
         if self.show_image:
             cv2.imshow('MediaPipe Face Mesh', image.astype('uint8'))  
@@ -245,13 +256,41 @@ class Mefamo():
 
             if self.show_debug:
                 for shape in FaceBlendShape:
-                    shape_debug_text = f'{shape.name}: {self.live_link_face.get_blendshape(FaceBlendShape(shape.value)):.3f}'
-                    cv2.putText(img=white_bg, text=shape_debug_text, org=tuple(text_coordinates), fontFace=font, fontScale=font_scale, color=color, thickness=1)
-                    text_coordinates[1] += 20
-                    if shape.value == 30: #start new column
+                    blendshape_value = self.live_link_face.get_blendshape(FaceBlendShape(shape.value))
+                    shape_debug_text = f'{shape.name}: {blendshape_value:.3f}'
+
+                    # draw background bar
+                    start_point = (text_coordinates[0], text_coordinates[1] + bar_output_offset_y)
+                    end_point = (start_point[0] + bar_length_max, start_point[1] + bar_width)
+                    cv2.rectangle(debug_image, start_point, end_point, bar_output_bg_color, thickness)
+
+                    # value bar graph
+                    if blendshape_value > 0.0:  # draw from left to right
+                        start_point = (text_coordinates[0], text_coordinates[1] + bar_output_offset_y)
+                        end_point = (start_point[0] + int(bar_length_max * blendshape_value), start_point[1] + bar_width)
+                        cv2.rectangle(debug_image, start_point, end_point, bar_output_color, thickness)
+                    elif blendshape_value < 0.0:  # draw from right to left
+                        start_point = (text_coordinates[0] + bar_length_max, text_coordinates[1] + bar_output_offset_y)
+                        end_point = (start_point[0] + int(bar_length_max * blendshape_value), start_point[1] + bar_width)
+                        cv2.rectangle(debug_image, start_point, end_point, bar_output_color, thickness)
+                    elif blendshape_value == 0.0:  # draw red zero indicator
+                        start_point = (text_coordinates[0], text_coordinates[1] + bar_output_offset_y)
+                        end_point = (start_point[0] + 1, start_point[1] + bar_width)
+                        cv2.rectangle(debug_image, start_point, end_point, zero_color, thickness)
+
+                    # blendshape name and output value
+                    cv2.putText(img=debug_image, text=shape_debug_text, org=tuple(text_coordinates), fontFace=font, fontScale=font_scale, color=font_color, thickness=1)
+
+                    text_coordinates[1] += 25
+                    if shape == FaceBlendShape.MouthStretchRight:  # start new column
                         text_coordinates = [300, 25]
 
-                cv2.imshow('Debug', white_bg)
+                cv2.imshow('Debug', debug_image)
+
+            if self.show_remap:
+                # TODO: add another window that shows show_remap min/max values AND allows user to tweak those in real time (slider UI)
+                cv2.imshow('Remap', remap_image)
+
             # ESC to exit
             if cv2.waitKey(1) & 0xFF == 27:
                 return False
